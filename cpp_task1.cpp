@@ -12,106 +12,97 @@ public:
 	Image(int* raw, int width, int height, int depth) {
 		img.resize(depth);
 		for (int i = 0; i < img.size(); ++i) {
-			img.at(i).resize(width);
-			for (int j = 0; j < img.at(0).size(); ++j) 
-				img.at(i).at(j).resize(height);
+			img[i].resize(width);
+			for (int j = 0; j < img[0].size(); ++j)
+				img[i][j].resize(height);
 		}
-		for (int i = 0; i < height; ++i) 
-			for (int j = 0; j < width; ++j) 
-				for (int k = 0; k < depth; ++k) 
-					img.at(k).at(j).at(i) = raw[k + j * depth + i * depth * width];
+		for (int i = 0; i < height; ++i)
+			for (int j = 0; j < width; ++j)
+				for (int k = 0; k < depth; ++k)
+					img[k][j][i] = raw[k + j * depth + i * depth * width];
 	}
 
 	Image operator=(const Image img2) {
 		img.resize(img2.img.size());
 		for (int i = 0; i < img.size(); ++i) {
-			img.at(i).resize(img2.img.at(0).size());
-			for (int j = 0; j < img.at(0).size(); ++j) 
-				img.at(i).at(j).resize(img2.img.at(0).at(0).size());
+			img[i].resize(img2.img[0].size());
+			for (int j = 0; j < img[0].size(); ++j)
+				img[i][j].resize(img2.img[0][0].size());
 		}
-		for (int i = 0; i < img2.img.at(0).at(0).size(); ++i) 
-			for (int j = 0; j < img2.img.at(0).size(); ++j) 
-				for (int k = 0; k < img2.img.size(); ++k) 
-					img.at(k).at(j).at(i) = img2.img.at(k).at(j).at(i);
+		for (int i = 0; i < img2.img[0][0].size(); ++i)
+			for (int j = 0; j < img2.img[0].size(); ++j)
+				for (int k = 0; k < img2.img.size(); ++k)
+					img[k][j][i] = img2.img[k][j][i];
 	}
-	
+
 	Image(int width, int height, int depth) {
 		img.resize(depth);
 		for (int i = 0; i < img.size(); ++i) {
-			img.at(i).resize(width);
-			for (int j = 0; j < img.at(0).size(); ++j) 
-				img.at(i).at(j).resize(height);
+			img[i].resize(width);
+			for (int j = 0; j < img[0].size(); ++j)
+				img[i][j].resize(height);
 		}
-		for (int i = 0; i < height; ++i) 
-			for (int j = 0; j < width; ++j) 
-				for (int k = 0; k < depth; ++k) 
-					img.at(k).at(j).at(i) = 0;
+		for (int i = 0; i < height; ++i)
+			for (int j = 0; j < width; ++j)
+				for (int k = 0; k < depth; ++k)
+					img[k][j][i] = 0;
 	}
-	
-	Image(Image* img2) {
-		img.resize((*img2).img.size());
-		for (int i = 0; i < img.size(); ++i) {
-			img.at(i).resize((*img2).img.at(0).size());
-			for (int j = 0; j < img.at(0).size(); ++j) 
-				img.at(i).at(j).resize((*img2).img.at(0).at(0).size());
-		}
-		for (int i = 0; i < (*img2).img.at(0).at(0).size(); ++i) 
-			for (int j = 0; j < (*img2).img.at(0).size(); ++j) 
-				for (int k = 0; k < (*img2).img.size(); ++k) 
-					img.at(k).at(j).at(i) = (*img2).img.at(k).at(j).at(i);
+
+	Image(Image const& other) {
+		img = other.img;
 	}
-	
+
 	Image crop(int xi, int gi, int xt, int gt) {
 		Image img2(img.size(), xt - xi, gt - gi);
-		for (int i = 0; i < img.size(); ++i) 
-			for (int j = xi; j < xt; ++j) 
-				for (int k = gi; k < gt; ++k) 
-					img2.img.at(i).at(j - xi).at(k - gi) = img.at(i).at(j).at(k);
+		for (int i = 0; i < img.size(); ++i)
+			for (int j = xi; j < xt; ++j)
+				for (int k = gi; k < gt; ++k)
+					img2.img[i][j - xi][k - gi] = img[i][j][k];
 		return img2;
 	}
-	
+
 	Image to_gs() {
-		Image img2(img.at(0).size(), img.at(0).at(0).size(), 1);
-		for (int i = 0; i < img.at(0).size(); ++i) 
-			for (int j = 0; j < img.at(0).at(0).size(); ++j) {
+		Image img2(img[0].size(), img[0][0].size(), 1);
+		for (int i = 0; i < img[0].size(); ++i)
+			for (int j = 0; j < img[0][0].size(); ++j) {
 				int sum = 0;
-				for (int k = 0; k < img.size(); ++k) 
-					sum += img.at(k).at(i).at(j);
-				img2.img.at(0).at(i).at(j) = sum / img.size();
+				for (int k = 0; k < img.size(); ++k)
+					sum += img[k][i][j];
+				img2.img[0][i][j] = sum / img.size();
 			}
 		return img2;
 	}
-	
+
 	void clear() {
 		img.resize(0);
 	}
-	
-	int width() {
-		return img.at(0).size();
+
+	const int width() {
+		return img[0].size();
 	}
-	
-	int height() {
-		return img.at(0).at(0).size();
+
+	const int height() {
+		return img[0][0].size();
 	}
-	
-	int depth() {
+
+	const int depth() {
 		return img.size();
 	}
-	
-	void print() {
-		for (int i = 0; i < img.at(0).at(0).size(); ++i) {
-			for (int j = 0; j < img.at(0).size(); ++j) {
+
+	const void print() {
+		for (int i = 0; i < img[0][0].size(); ++i) {
+			for (int j = 0; j < img[0].size(); ++j) {
 				cout << '(';
-				for (int k = 0; k < img.size() - 1; ++k) 
-					cout << img.at(k).at(j).at(i) << ", ";
-				cout << img.at(img.size() - 1).at(j).at(i) << ") ";
+				for (int k = 0; k < img.size() - 1; ++k)
+					cout << img[k][j][i] << ", ";
+				cout << img[img.size() - 1][j][i] << ") ";
 			}
 			cout << '\n';
 		}
 	}
-	
-	int at(int x, int y, int d) {
-		return img.at(d).at(x).at(y);
+
+	const int at(int x, int y, int d) {
+		return img.at(x).at(y).at(d);
 	}
 };
 
