@@ -1,16 +1,9 @@
 #include <iostream>
 #include <set>
 #include <random>
-
-// My includes
 #include <cmath>
 #include <iomanip>
 
-
-
-/* My code begins */
-
-/* This code uses inheritance, extension, and redefinition. */
 
 /*
 template <class T>
@@ -34,12 +27,6 @@ public:
     }
 };
 */
-
-/* My code ends */
-
-
-
-/* Added constructors for classes to original code */
 
 class DiscreteState {
 private:
@@ -87,12 +74,6 @@ public:
         return states.count(s) > 0;
     }
 };
-
-
-
-/* My code begins */
-
-/* New classes. */
 
 template <class A, class B>
 class StateUnion {
@@ -160,12 +141,6 @@ public:
 		StateSubtraction<SegmentStateAdditions, SetState>::StateSubtraction(SegmentStateAdditions(segmentState, additions), omissions) { }
 };
 
-/* My code ends */
-
-
-
-/* This code is original, but unnessesary. */
-
 /* 
 class ProbabilityTest {
 private:
@@ -206,15 +181,6 @@ public:
         return static_cast<float>(good)/static_cast<float>(test_count);
     }
 };
-*/
-
-
-
-/* My code begins */
-
-/* This code uses inheritance, extension, and redefinition. */
-
-/*
 class ProbabilityTest : public 	MyProbabilityTest<DiscreteState>, 
 						public 	MyProbabilityTest<SegmentState>, 
 						public 	MyProbabilityTest<SetState>,
@@ -273,16 +239,6 @@ public:
 	}
 };
 */
-
-/* My code ends */
-
-
-
-
-
-/* My code begins */
-
-/* This code is very short, but doesn't use inheritance, extension, and redefinition. This code is unsafe, 'cause you don't know, what is T. */
  
 class ProbabilityTest {
 private:
@@ -307,13 +263,6 @@ public:
         return static_cast<float>(good)/static_cast<float>(test_count);
     }
 };
-
-/* My code ends */
-
-
-
-
-/* My code begins */
 
 const int maxNumberTest = 1000;
 
@@ -340,8 +289,6 @@ void func3(T s) {
 	func2(s);
 }
 
-/* My code ends */
-
 
 
 int main(int argc, const char * argv[]) {
@@ -354,8 +301,6 @@ int main(int argc, const char * argv[]) {
     std::cout << pt(s) << std::endl;
     std::cout << pt(ss) << std::endl;
     */
-    
-    /* Functions, answering the questions */
     
 	func1(SegmentState(0, 10));
 	func1(SetState({1, 3, 5, 7, 23, 48, 57, 60, 90, 99}));
