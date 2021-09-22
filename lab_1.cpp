@@ -35,7 +35,6 @@ private:
 public:
     DiscreteState(int state): state(state) { }
     
-    /* This one was added */
     DiscreteState(DiscreteState const& other): state(other.state) { }
 
     bool contains(int s) const {
@@ -51,7 +50,6 @@ public:
     SegmentState(): beg(0), end(-1) { }
     SegmentState(int beg, int end): beg(beg), end(end) { }
     
-    /* This one was added */
     SegmentState(SegmentState const& other): beg(other.beg), end(other.end) { }
     
     bool contains(int s) const {
@@ -67,7 +65,6 @@ public:
     SetState(): states() { }
     SetState(std::set<int> const &src): states(src) { }
     
-    /* This one was added */
     SetState(SetState const& other): states(other.states) { }
     
     bool contains(int s) const {
@@ -247,10 +244,7 @@ private:
     unsigned test_count;
     
 public:
-    ProbabilityTest(unsigned seed, int test_min, int test_max, unsigned test_count): 	seed(seed), 
-																						test_min(test_min), 
-																						test_max(test_max), 
-																						test_count(test_count) { }
+    ProbabilityTest(unsigned seed, int test_min, int test_max, unsigned test_count) : seed(seed), test_min(test_min), test_max(test_max), test_count(test_count) { }
     
     template <class T>
     float operator()(T const &s) const {
