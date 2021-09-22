@@ -1,299 +1,266 @@
-#include <random>
-#include <vector>
-#include <chrono>
 #include <iostream>
+#include <set>
+#include <random>
+#include <cmath>
+#include <iomanip>
 
-using namespace std;
-
-class DemoStr
-{
-public:
-	DemoStr() : data_{ nullptr }, length_{ 0 }, capacity_{ 0 }
-	{}
-
-	DemoStr(char const* raw_str, size_t length) : length_{ length }, capacity_{ length }
-	{
-		allocate(length);
-		copy_from(raw_str, data_, length);
-		reformat();
-	}
-
-	DemoStr(DemoStr const& other) : length_{ other.length_ }, capacity_{ length_ }
-	{
-		allocate(other.length_);
-		copy_from(other.data_, data_, other.length_);
-	}
-
-	explicit DemoStr(int value)
-	{
-		length_ = get_value_length(value);
-		allocate(length_);
-		auto it = &data_[length_ - 1];
-		while (value > 0) {
-			*it = value % 10 + 0x30;
-			--it;
-			value /= 10;
-		}
-	}
-
-	void print() const {
-		for (size_t i = 0; i < length_; i++)
-			cout << data_[i];
-		cout << '\n';
-	}
-
-	char& operator[](size_t index) {
-		return data_[index];
-	}
-
-	const char& operator[](size_t index) const {
-		return data_[index];
-	}
-
-	bool equal(DemoStr const& other) const {
-		if (length_ != other.length_)
-			return false;
-
-		for (size_t i = 0; i < length_; i++) {
-			if (data_[i] != other.data_[i])
-				return false;
-		}
-		return true;
-	}
-
-	void clear()
-	{
-		delete[] data_;
-		data_ = nullptr;
-		length_ = capacity_ = 0;
-	}
-
-	void read_from(istream& in)
-	{
-		char tmp;
-		while (in >> tmp) {
-			if (length_ + 1 >= capacity_)
-				reallocate((capacity_ == 0) ? 1 : capacity_ * 2);
-			data_[length_] = tmp;
-			++length_;
-		}
-		reformat();
-	}
-
-	/*bool operator==(char c) const {
-		if (data[)
-		{
-
-		}
-	}*/
-
-	~DemoStr()
-	{
-		clear();
-	}
-
-	void shrink_to_fit()
-	{
-		reallocate(length_);
-	}
-
-protected:
-	char* get_data() const {
-		return data_;
-	}
-
-	void reallocate(size_t n) {
-		char* old_data = data_;
-
-		data_ = new char[n];
-		capacity_ = n;
-
-		copy_from(old_data, data_, (n > length_) ? length_ : n);
-
-		delete[] old_data;
-	}
-
-	void reformat() {
-		for (size_t i = 0; i < length_; i++)
-			data_[i] = (i % 2 == 0) ? tolower(data_[i]) : toupper(data_[i]);
-	}
-
-	size_t get_value_length(int value)
-	{
-		size_t len = 0;
-		while (value > 0) {
-			value /= 10;
-			len++;
-		}
-		return len;
-	}
-
-	void allocate(size_t n) {
-		data_ = new char[n];
-	}
-
-	void copy_from(char const* src, char* dst, size_t n) {
-		for (size_t i = 0; i < n; i++)
-			dst[i] = src[i];
-	}
-
-	friend ostream& operator<< (ostream& out, DemoStr const& v);
-
-	size_t get_length() const {
-		return length_;
-	}
-
-	size_t get_capacity() const {
-		return capacity_;
-	}
-	void set_length(size_t n) {
-		length_ = n;
-	}
-
+template <class T> //шаблон класса, который будет давать возможность использовать оператор для разных классов
+class MyProbabilityTest {
 private:
-	char* data_ = nullptr;
-	size_t length_ = 0;
-	size_t capacity_ = 0;
+	unsigned m_seed;
+	int m_test_min, m_test_max;
+	unsigned m_test_count;
+
+public:
+	MyProbabilityTest(unsigned seed, int test_min, int test_max, unsigned test_count): m_seed(seed), m_test_min(test_min), m_test_max(test_max), m_test_count(test_count) { }
+
+	float operator()(T const &s) const {
+		std::mt19937 rng(m_seed);
+		std::uniform_int_distribution<int> dstr(m_test_min, m_test_max);
+		unsigned good = 0;
+		for (unsigned cnt = 0; cnt != m_test_count; ++cnt)
+			if (s.contains(dstr(rng))) ++good;
+
+		return static_cast<float>(good)/static_cast<float>(m_test_count);
+	}
 };
 
-ostream& operator<< (ostream& out, DemoStr const& v)
-{
-	for (size_t i = 0; i < v.length_; i++)
-		out << v.data_[i];
-	return out;
+class DiscreteState { //дискретное(прерывистое) состояние -- задаётся одним элементом
+private:
+	int const state;
+
+public:
+	DiscreteState(int state) : state(state) { }
+
+	DiscreteState(DiscreteState const& other) : state(other.state) { }
+
+	bool contains(int s) const {
+		return (s == state);
+	}
+};
+
+class SegmentState { //состояние из сегмента -- задаётся массивом элементов
+private:
+	int const beg, end;
+
+public:
+	SegmentState() : beg(0), end(-1) { }
+	SegmentState(int beg, int end) : beg(beg), end(end) { }
+
+	SegmentState(SegmentState const& other) : beg(other.beg), end(other.end) { }
+
+	bool contains(int s) const {
+		return s >= beg && s <= end;
+	}
+};
+
+class SetState { // состояние из множества -- показывает, является ли число элементом множества
+private:
+	std::set<int> const states;
+
+public:
+	SetState() : states() { }
+	SetState(std::set<int> const& src) : states(src) { }
+
+	SetState(SetState const& other) : states(other.states) { }
+
+	bool contains(int s) const {
+		return states.count(s) > 0;
+	}
+};
+
+template <class A, class B>
+class StateUnion { //состояние, как объединение двух других состояний
+private:
+	A const a; 
+	B const b;
+
+public:
+	StateUnion(A a, B b) : a(a), b(b) { }
+
+	StateUnion(StateUnion<A, B> const& other) : a(other.a), b(other.b) { }
+
+	bool contains(int s) const {
+		return a.contains(s) || b.contains(s);
+	}
+};
+
+template <class A, class B>
+class StateSubtraction { //состояние, как дополнение одного до другого (вычитание множеств)
+private:
+	A const a;
+	B const b;
+
+public:
+	StateSubtraction(A a, B b) : a(a), b(b) { }
+
+	StateSubtraction(StateSubtraction<A, B> const& other) : a(other.a), b(other.b) { }
+
+	bool contains(int s) const {
+		return a.contains(s) && !b.contains(s);
+	}
+};
+
+template <class A, class B>
+class StateIntersection { //пересечение двух состояний
+private:
+	A const a;
+	B const b;
+
+public:
+	StateIntersection(A a, B b) : a(a), b(b) { }
+
+	StateIntersection(StateIntersection<A, B> const& other) : a(other.a), b(other.b) { }
+
+	bool contains(int s) const {
+		return a.contains(s) && b.contains(s);
+	}
+};
+
+class SegmentStateOmissions : public StateSubtraction<SegmentState, SetState> {
+public:
+	SegmentStateOmissions(SegmentState segmentState, SetState omissions) :
+		StateSubtraction<SegmentState, SetState>::StateSubtraction(segmentState, omissions) { }
+};
+
+class SegmentStateAdditions : public StateUnion<SegmentState, SetState> {
+public:
+	SegmentStateAdditions(SegmentState segmentState, SetState additions) :
+		StateUnion<SegmentState, SetState>::StateUnion(segmentState, additions) { }
+};
+
+class SegmentStateOmissionsAdditions : public StateSubtraction<SegmentStateAdditions, SetState> {
+public:
+	SegmentStateOmissionsAdditions(SegmentState segmentState, SetState omissions, SetState additions) :
+		StateSubtraction<SegmentStateAdditions, SetState>::StateSubtraction(SegmentStateAdditions(segmentState, additions), omissions) { }
+};
+/* 
+class ProbabilityTest {
+private:
+	unsigned seed;
+	int test_min, test_max;
+	unsigned test_count;
+
+public:
+	ProbabilityTest(unsigned seed, int test_min, int test_max, unsigned test_count): seed(seed), test_min(test_min),test_max(test_max), test_count(test_count) { }
+
+	float operator()(DiscreteState const &s) const {
+		std::default_random_engine rng(seed);
+		std::uniform_int_distribution<int> dstr(test_min,test_max);
+		unsigned good = 0;
+		for (unsigned cnt = 0; cnt != test_count; ++cnt)
+			if (s.contains(dstr(rng))) ++good;
+
+		return static_cast<float>(good)/static_cast<float>(test_count);
+	}
+	float operator()(SegmentState const &s) const {
+		std::default_random_engine rng(seed);
+		std::uniform_int_distribution<int> dstr(test_min,test_max);
+		unsigned good = 0;
+		for (unsigned cnt = 0; cnt != test_count; ++cnt)
+			if (s.contains(dstr(rng))) ++good;
+
+		return static_cast<float>(good)/static_cast<float>(test_count);
+	}
+
+	float operator()(SetState const &s) const {
+		std::default_random_engine rng(seed);
+		std::uniform_int_distribution<int> dstr(test_min,test_max);
+		unsigned good = 0;
+		for (unsigned cnt = 0; cnt != test_count; ++cnt)
+			if (s.contains(dstr(rng))) ++good;
+
+		return static_cast<float>(good)/static_cast<float>(test_count);
+	}
+};
+*/
+
+class ProbabilityTest : public 	MyProbabilityTest<DiscreteState>,
+						public 	MyProbabilityTest<SegmentState>,
+						public 	MyProbabilityTest<SetState>,
+						public 	MyProbabilityTest<SegmentStateOmissions>,
+						public 	MyProbabilityTest<SegmentStateAdditions>,
+						public 	MyProbabilityTest<SegmentStateOmissionsAdditions> {
+public:
+	ProbabilityTest(unsigned seed, int test_min, int test_max, unsigned test_count):
+								MyProbabilityTest<DiscreteState>::MyProbabilityTest(seed, test_min, test_max, test_count),
+								MyProbabilityTest<SegmentState>::MyProbabilityTest(seed, test_min, test_max, test_count),
+								MyProbabilityTest<SetState>::MyProbabilityTest(seed, test_min, test_max, test_count),
+								MyProbabilityTest<SegmentStateOmissions>::MyProbabilityTest(seed, test_min, test_max, test_count),
+								MyProbabilityTest<SegmentStateAdditions>::MyProbabilityTest(seed, test_min, test_max, test_count),
+								MyProbabilityTest<SegmentStateOmissionsAdditions>::MyProbabilityTest(seed, test_min, test_max, test_count) { }
+};
+
+/* код без наследования, но короткий и рабочий
+class ProbabilityTest {
+private:
+	unsigned seed;
+	int test_min, test_max;
+	unsigned test_count;
+
+public:
+	ProbabilityTest(unsigned seed, int test_min, int test_max, unsigned test_count) : seed(seed), test_min(test_min), test_max(test_max), test_count(test_count) { }
+
+	template <class T>
+	float operator()(T const& s) const {
+		std::default_random_engine rng(seed);
+		std::uniform_int_distribution<int> dstr(test_min, test_max);
+		unsigned good = 0;
+		for (unsigned cnt = 0; cnt != test_count; ++cnt)
+			if (s.contains(dstr(rng))) ++good;
+
+		return static_cast<float>(good) / static_cast<float>(test_count);
+	}
+};
+*/
+
+const int maxNumberTest = 1000;
+
+template <class T>
+void func1(T s) {
+	for (int i = 0; i < maxNumberTest; ++i) {
+		ProbabilityTest pt(10, 0, 100, i + 1);
+		std::cout << std::fixed << std::setw(10) << pt(s) << '\n';
+	}
+	std::cout << '\n';
 }
 
-istream& operator>> (istream& in, DemoStr& v)
-{
-	v.clear();
-	v.read_from(in);
-	return in;
+template <class T>
+void func2(T s, int ss) {
+	ProbabilityTest pt1(10, 0, 100, 1000000), pt2(10, 0, 200, 1000000), pt3(10, 0, 500, 1000000);
+	std::cout << ss << ' ' << 101 << ' ' << std::fixed << std::setprecision(6) << pt1(s) << ' ' << ss / 101.0 << '\n';
+	std::cout << ss << ' ' << 201 << ' ' << std::fixed << std::setprecision(6) << pt2(s) << ' ' << ss / 201.0 << '\n';
+	std::cout << ss << ' ' << 501 << ' ' << std::fixed << std::setprecision(6) << pt3(s) << ' ' << ss / 501.0 << "\n\n";
 }
 
-class NewStr : public DemoStr {
-public:
-	NewStr(char const* raw_str, size_t length) : DemoStr(raw_str, length)
-	{}
-
-	NewStr() : DemoStr()
-	{}
-
-	NewStr(NewStr const& other) : DemoStr(other)
-	{}
-
-	NewStr(int num) : DemoStr(num)
-	{}
-
-	void append(NewStr str) {
-		reallocate(get_length() + str.get_length());
-		for (size_t i = 0; i < str.get_length(); i++)
-			(*this)[i + get_length()] = str[i];
-
-		set_length(get_length() + str.get_length());
-	}
-
-	vector<NewStr> split(char c) {
-		vector<NewStr> res(0);
-		size_t start_pos = 0;
-		for (size_t i = 0; i < get_length(); i++)
-		{
-			if (tolower((*this)[i]) == c) {
-				res.push_back(NewStr(get_data() + start_pos, i - start_pos));
-				start_pos = i + 1;
-			}
-		}
-		res.push_back(NewStr(get_data() + start_pos, get_length() - start_pos));
-		return res;
-	}
-
-protected:
-	NewStr create_str(size_t start, size_t end, NewStr str) {
-		size_t len = end - start;
-		NewStr tmp(len);
-		tmp.reallocate(len);
-		tmp.set_length(len);
-		tmp.copy_from(get_data() + start, tmp.get_data(), len);
-		return tmp;
-	}
-};
-
-class TimeMeasure {
-public:
-	void start() {
-		start_time = std::chrono::high_resolution_clock::now();
-	}
-	void stop() {
-		stop_time = std::chrono::high_resolution_clock::now();
-	}
-	size_t elapsed() const {
-		auto elapsed_time = stop_time - start_time;
-		return std::chrono::duration_cast<std::chrono::milliseconds>(elapsed_time).count();
-	}
-private:
-	std::chrono::high_resolution_clock::time_point start_time, stop_time;
-};
-
-class RandomGenerator {
-public:
-	static std::vector<int> create_sequence(size_t n, int min, int max) {
-		//std::mt19937_64 engine(std::random_device{}());
-		std::mt19937_64 engine(42);
-		std::uniform_int_distribution<int> distr(min, max);
-		std::vector<int> v(n);
-		for (size_t i = 0; i < n; i++)
-			v[i] = distr(engine);
-		return v;
-	}
-private:
-
-};
-
-int main(int argc, char** argv) {
-	TimeMeasure time;
-	char demo[] = "Hello";
-
-	NewStr a(demo, 7);
-	NewStr b = a;
-	cout << a << ' ' << b << endl;
-	a.append(b);
-	cout << a << endl;
-
-	char test[] = "HelloFellas";
-	auto start = std::chrono::high_resolution_clock::now();
-	NewStr c(test, 14);
-	vector<NewStr> result(0);
-	result = c.split('l');
-	auto end = std::chrono::high_resolution_clock::now();
-	auto nsec = end - start;
-	cout << nsec.count() << std::endl;
-
-	for (size_t i = 0; i < 10000000; i += 10000)
-	{
-		int start_str_size = i;
-		auto start_vec = RandomGenerator::create_sequence(start_str_size, -127, 127);
-		NewStr f(start_vec.data(), start_vec.size());
+template <class T>
+void func3(T s) {
+	func1(s);
+	func2(s, 11);
+}
 
 
-		/*auto random_vec = RandomGenerator::create_sequence(i, -127, 127);
-		FixedStr s(random_vec.data(), random_vec.size());*/
+int main(int argc, const char* argv[]) {
+	/*
+	DiscreteState d(1);
+	SegmentState s(0,10);
+	SetState ss({1, 3, 5, 7, 23, 48, 57, 60, 90, 99});
+	ProbabilityTest pt(10,0,100,100000);
+	std::cout << pt(d) << std::endl;
+	std::cout << pt(s) << std::endl;
+	std::cout << pt(ss) << std::endl;
+	*/
 
-		time.start();
-		for (size_t j = 0; j < 100; j++)
-		{
-			NewStr n = f;
-		}
-		time.stop();
+	func1(SegmentState(0, 10));
+	func1(SetState({ 1, 3, 5, 7, 11, 23, 48, 57, 60, 90, 99 }));
 
-		std::cout << i << " " << time.elapsed() << std::endl;
+	func2(SegmentState(0, 10), 11);
+	func2(SegmentState(0, 20), 21);
+	func2(SegmentState(0, 50), 51);
 
-	}
-
-	cout << a << endl;
-
-	char test[] = "MikelAiklSasha";
-	NewStr c(test, 14);
-	vector<NewStr> result(0);
-	result = c.split('l');
+	func3(SegmentStateAdditions(SegmentState(0, 9), SetState({ 15 })));
+	func3(SegmentStateOmissions(SegmentState(0, 11), SetState({ 5 })));
+	func3(SegmentStateOmissionsAdditions(SegmentState(0, 10), SetState({ 5 }), SetState({ 15 })));
 
 	return 0;
 }
