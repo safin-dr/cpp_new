@@ -1,60 +1,43 @@
 #include <iostream>
 #include <set>
+#include <vector>
 #include <random>
 #include <cmath>
 #include <iomanip>
+#include <algorithm>
 
-template <class T> //шаблон класса, который будет давать возможность использовать оператор для разных классов
-class MyProbabilityTest {
-private:
-	unsigned m_seed;
-	int m_test_min, m_test_max;
-	unsigned m_test_count;
-
+class State {
 public:
-	MyProbabilityTest(unsigned seed, int test_min, int test_max, unsigned test_count): m_seed(seed), m_test_min(test_min), m_test_max(test_max), m_test_count(test_count) { }
-
-	float operator()(T const &s) const {
-		std::mt19937 rng(m_seed);
-		std::uniform_int_distribution<int> dstr(m_test_min, m_test_max);
-		unsigned good = 0;
-		for (unsigned cnt = 0; cnt != m_test_count; ++cnt)
-			if (s.contains(dstr(rng))) ++good;
-
-		return static_cast<float>(good)/static_cast<float>(m_test_count);
-	}
+	bool virtual contains(int s) const = 0;
+	State() { }
+	~State() { }
 };
 
-class DiscreteState { //дискретное(прерывистое) состояние -- задаётся одним элементом
+class DiscreteState : public State {
 private:
 	int const state;
 
 public:
 	DiscreteState(int state) : state(state) { }
 
-	DiscreteState(DiscreteState const& other) : state(other.state) { }
-
-	bool contains(int s) const {
+	bool contains(int s) const override {
 		return (s == state);
 	}
 };
 
-class SegmentState { //состояние из сегмента -- задаётся массивом элементов
+class SegmentState : public State {
 private:
 	int const beg, end;
 
 public:
-	SegmentState() : beg(0), end(-1) { }
 	SegmentState(int beg, int end) : beg(beg), end(end) { }
 
-	SegmentState(SegmentState const& other) : beg(other.beg), end(other.end) { }
-
-	bool contains(int s) const {
+	bool contains(int s) const override {
 		return s >= beg && s <= end;
 	}
 };
 
-class SetState { // состояние из множества -- показывает, является ли число элементом множества
+class SetState : public State {
 private:
 	std::set<int> const states;
 
@@ -62,159 +45,72 @@ public:
 	SetState() : states() { }
 	SetState(std::set<int> const& src) : states(src) { }
 
-	SetState(SetState const& other) : states(other.states) { }
-
-	bool contains(int s) const {
+	bool contains(int s) const override {
 		return states.count(s) > 0;
 	}
 };
 
-template <class A, class B>
-class StateUnion { //состояние, как объединение двух других состояний
+class StateUnion : public State {
 private:
-	A const a; 
-	B const b;
+	State const& a;
+	State const& b;
 
 public:
-	StateUnion(A a, B b) : a(a), b(b) { }
+	StateUnion(State const& a, State const& b) : a(a), b(b) { }
 
-	StateUnion(StateUnion<A, B> const& other) : a(other.a), b(other.b) { }
-
-	bool contains(int s) const {
+	bool contains(int s) const override {
 		return a.contains(s) || b.contains(s);
 	}
 };
 
-template <class A, class B>
-class StateSubtraction { //состояние, как дополнение одного до другого (вычитание множеств)
+class StateSubtraction : public State {
 private:
-	A const a;
-	B const b;
+	State const& a;
+	State const& b;
 
 public:
-	StateSubtraction(A a, B b) : a(a), b(b) { }
+	StateSubtraction(State const& a, State const& b) : a(a), b(b) { }
 
-	StateSubtraction(StateSubtraction<A, B> const& other) : a(other.a), b(other.b) { }
-
-	bool contains(int s) const {
+	bool contains(int s) const override {
 		return a.contains(s) && !b.contains(s);
 	}
 };
 
-template <class A, class B>
-class StateIntersection { //пересечение двух состояний
+class StateIntersection : public State {
 private:
-	A const a;
-	B const b;
+	State const& a;
+	State const& b;
 
 public:
-	StateIntersection(A a, B b) : a(a), b(b) { }
+	StateIntersection(State const& a, State const& b) : a(a), b(b) { }
 
-	StateIntersection(StateIntersection<A, B> const& other) : a(other.a), b(other.b) { }
-
-	bool contains(int s) const {
+	bool contains(int s) const override {
 		return a.contains(s) && b.contains(s);
 	}
 };
 
-class SegmentStateOmissions : public StateSubtraction<SegmentState, SetState> {
-public:
-	SegmentStateOmissions(SegmentState segmentState, SetState omissions) :
-		StateSubtraction<SegmentState, SetState>::StateSubtraction(segmentState, omissions) { }
-};
-
-class SegmentStateAdditions : public StateUnion<SegmentState, SetState> {
-public:
-	SegmentStateAdditions(SegmentState segmentState, SetState additions) :
-		StateUnion<SegmentState, SetState>::StateUnion(segmentState, additions) { }
-};
-
-class SegmentStateOmissionsAdditions : public StateSubtraction<SegmentStateAdditions, SetState> {
-public:
-	SegmentStateOmissionsAdditions(SegmentState segmentState, SetState omissions, SetState additions) :
-		StateSubtraction<SegmentStateAdditions, SetState>::StateSubtraction(SegmentStateAdditions(segmentState, additions), omissions) { }
-};
-/* 
 class ProbabilityTest {
 private:
 	unsigned seed;
 	int test_min, test_max;
 	unsigned test_count;
-
-public:
-	ProbabilityTest(unsigned seed, int test_min, int test_max, unsigned test_count): seed(seed), test_min(test_min),test_max(test_max), test_count(test_count) { }
-
-	float operator()(DiscreteState const &s) const {
-		std::default_random_engine rng(seed);
-		std::uniform_int_distribution<int> dstr(test_min,test_max);
-		unsigned good = 0;
-		for (unsigned cnt = 0; cnt != test_count; ++cnt)
-			if (s.contains(dstr(rng))) ++good;
-
-		return static_cast<float>(good)/static_cast<float>(test_count);
-	}
-	float operator()(SegmentState const &s) const {
-		std::default_random_engine rng(seed);
-		std::uniform_int_distribution<int> dstr(test_min,test_max);
-		unsigned good = 0;
-		for (unsigned cnt = 0; cnt != test_count; ++cnt)
-			if (s.contains(dstr(rng))) ++good;
-
-		return static_cast<float>(good)/static_cast<float>(test_count);
-	}
-
-	float operator()(SetState const &s) const {
-		std::default_random_engine rng(seed);
-		std::uniform_int_distribution<int> dstr(test_min,test_max);
-		unsigned good = 0;
-		for (unsigned cnt = 0; cnt != test_count; ++cnt)
-			if (s.contains(dstr(rng))) ++good;
-
-		return static_cast<float>(good)/static_cast<float>(test_count);
-	}
-};
-*/
-
-class ProbabilityTest : public 	MyProbabilityTest<DiscreteState>,
-						public 	MyProbabilityTest<SegmentState>,
-						public 	MyProbabilityTest<SetState>,
-						public 	MyProbabilityTest<SegmentStateOmissions>,
-						public 	MyProbabilityTest<SegmentStateAdditions>,
-						public 	MyProbabilityTest<SegmentStateOmissionsAdditions> {
-public:
-	ProbabilityTest(unsigned seed, int test_min, int test_max, unsigned test_count):
-								MyProbabilityTest<DiscreteState>::MyProbabilityTest(seed, test_min, test_max, test_count),
-								MyProbabilityTest<SegmentState>::MyProbabilityTest(seed, test_min, test_max, test_count),
-								MyProbabilityTest<SetState>::MyProbabilityTest(seed, test_min, test_max, test_count),
-								MyProbabilityTest<SegmentStateOmissions>::MyProbabilityTest(seed, test_min, test_max, test_count),
-								MyProbabilityTest<SegmentStateAdditions>::MyProbabilityTest(seed, test_min, test_max, test_count),
-								MyProbabilityTest<SegmentStateOmissionsAdditions>::MyProbabilityTest(seed, test_min, test_max, test_count) { }
-};
-
-/* код без наследования, но короткий и рабочий
-class ProbabilityTest {
-private:
-	unsigned seed;
-	int test_min, test_max;
-	unsigned test_count;
-
 public:
 	ProbabilityTest(unsigned seed, int test_min, int test_max, unsigned test_count) : seed(seed), test_min(test_min), test_max(test_max), test_count(test_count) { }
-
-	template <class T>
-	float operator()(T const& s) const {
+	float operator()(State const& s) const {
 		std::default_random_engine rng(seed);
 		std::uniform_int_distribution<int> dstr(test_min, test_max);
 		unsigned good = 0;
 		for (unsigned cnt = 0; cnt != test_count; ++cnt)
 			if (s.contains(dstr(rng))) ++good;
-
 		return static_cast<float>(good) / static_cast<float>(test_count);
 	}
 };
-*/
 
-const int maxNumberTest = 1000;
+bool test(State& st, int t1, int t2, int t3) {
+	return !st.contains(t1) && st.contains(t2) && !st.contains(t3);
+}
+
+int maxNumberTest = 1000;
 
 template <class T>
 void func1(T s) {
@@ -239,17 +135,48 @@ void func3(T s) {
 	func2(s, 11);
 }
 
+void converge(State& s, int k)
+{
+	std::default_random_engine rng(k);
+	std::uniform_int_distribution<int> dstr(0, 100);
+	double epsilon = 0.00001;
+
+	double old_prob = 0;
+	double new_prob = 1;
+
+	int num = 1000;
+
+	while (std::abs(old_prob - new_prob) > epsilon)
+	{
+		int good = 0;
+		for (int i = 0; i < num; i++)
+		{
+			good += (s.contains(dstr(rng))) ? 1 : 0;
+		}
+		old_prob = new_prob;
+		new_prob = (double)(good) / (double)(num);
+		num += 1000;
+	}
+	maxNumberTest = std::max(maxNumberTest, num);
+	std::cout << "This thing converges at " << num << '\n';
+}
+
 
 int main(int argc, const char* argv[]) {
-	/*
-	DiscreteState d(1);
-	SegmentState s(0,10);
-	SetState ss({1, 3, 5, 7, 23, 48, 57, 60, 90, 99});
-	ProbabilityTest pt(10,0,100,100000);
-	std::cout << pt(d) << std::endl;
-	std::cout << pt(s) << std::endl;
-	std::cout << pt(ss) << std::endl;
-	*/
+
+	SegmentState st01(5, 19);
+	DiscreteState st02(3);
+	SetState st03({ 1, 3, 5, 7 });
+	StateUnion st04(st01, st02);
+	StateSubtraction st05(st01, st03);
+	StateIntersection st06(st01, st03);
+
+	if (!test(st01, 4, 5, 20)) std::cout << "Problem with SegmentState\n";
+	if (!test(st02, 2, 3, 4)) std::cout << "Problem with DiscreteState\n";
+	if (!test(st03, 4, 5, 8)) std::cout << "Problem with SetState\n";
+	if (!test(st04, 4, 3, 20)) std::cout << "Problem with StateUnion\n";
+	if (!test(st05, 5, 6, 7)) std::cout << "Problem with StateSubtraction\n";
+	if (!test(st06, 4, 5, 6)) std::cout << "Problem with StateIntersection\n";
 
 	func1(SegmentState(0, 10));
 	func1(SetState({ 1, 3, 5, 7, 11, 23, 48, 57, 60, 90, 99 }));
@@ -258,9 +185,27 @@ int main(int argc, const char* argv[]) {
 	func2(SegmentState(0, 20), 21);
 	func2(SegmentState(0, 50), 51);
 
-	func3(SegmentStateAdditions(SegmentState(0, 9), SetState({ 15 })));
-	func3(SegmentStateOmissions(SegmentState(0, 11), SetState({ 5 })));
-	func3(SegmentStateOmissionsAdditions(SegmentState(0, 10), SetState({ 5 }), SetState({ 15 })));
+	func3(StateUnion(SegmentState(0, 9), DiscreteState(11)));
+	func3(StateSubtraction(SegmentState(0, 11), DiscreteState(5)));
+	func3(StateIntersection(SegmentState(0, 11), SegmentState(1, 12)));
+
+	std::vector<State*> States;
+	States.push_back(&st01);
+	States.push_back(&st02);
+	States.push_back(&st03);
+	States.push_back(&st04);
+	States.push_back(&st05);
+	States.push_back(&st06);
+
+	for (auto i : States) {
+		converge(*i, 775);
+	}
+
+
+
+	converge(st01, 579);
+
+	std::cout << maxNumberTest;
 
 	return 0;
 }
