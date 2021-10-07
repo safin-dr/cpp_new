@@ -8,9 +8,9 @@
 
 class State {
 public:
-	bool virtual contains(int s) const = 0;
+	virtual bool contains(int s) const = 0;
 	State() { }
-	~State() { }
+	virtual ~State() { }
 };
 
 class DiscreteState : public State {
