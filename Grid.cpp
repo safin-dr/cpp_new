@@ -1,4 +1,5 @@
 #include<iostream>
+#include<sstream>
 
 template <typename T>
 class Grid {
@@ -19,6 +20,35 @@ public:
             }
         }
     };
+
+    Grid(const Grid &other) {
+        x_size = other.get_xsize();
+        y_size = other.get_ysize();
+        is_sub = new bool[x_size * y_size];
+        memory = new T[x_size * y_size];
+        if (other.memory1 != nullptr)
+            memory1 = new Grid<T>[x_size * y_size];
+        else
+            memory1 = nullptr;
+
+        for (int i = 0; i < x_size; i++) {
+            for (int j = 0; j < y_size; j++) {
+                memory[i * y_size + j] = other.memory[i * y_size + j];
+                if (memory1 != nullptr)
+                    memory1[i * y_size + j] = other.memory1[i * y_size + j];
+                is_sub[i * y_size + j] = other.is_sub[i * y_size + j];
+            }
+        }
+    }
+
+    Grid(Grid&& other): x_size(other.x_size), y_size(other.y_size), memory(other.memory), memory1(other.memory1), is_sub(other.is_sub) {
+        other.x_size = 0;
+        other.y_size = 0;
+        other.memory = nullptr;
+        other.memory1 = nullptr;
+        other.is_sub = nullptr;
+    }
+
 
     T operator()(size_t x_idx, size_t y_idx) const {
         return memory[x_idx * y_size + y_idx];
@@ -54,17 +84,19 @@ public:
     };
 
     Grid& operator= (Grid const& g) {
+        if (this == &g)
+            return *this;
         delete[] memory;
         delete[] memory1;
         delete[] is_sub;
-        is_sub = new bool[g.x_size * g.y_size];
-        memory = new T[g.x_size * g.y_size];
-        if (g.memory1 != nullptr)
-            memory1 = new Grid<T>[g.x_size * g.y_size];
-        else
-            memory1 = nullptr;
         x_size = g.x_size;
         y_size = g.y_size;
+        is_sub = new bool[x_size * y_size];
+        memory = new T[x_size * y_size];
+        if (g.memory1 != nullptr)
+            memory1 = new Grid<T>[x_size * y_size];
+        else
+            memory1 = nullptr;
         for (int i = 0; i < x_size; i++) {
             for (int j = 0; j < y_size; j++) {
                 memory[i * y_size + j] = g.memory[i * y_size + j];
@@ -75,6 +107,27 @@ public:
         }
         return *this;
     };
+
+    Grid& operator= (Grid&& g) {
+        if (&g == this)
+            return *this;
+        delete[] memory;
+        delete[] memory1;
+        delete[] is_sub;
+        x_size = g.x_size;
+        y_size = g.y_size;
+        memory = g.memory;
+        memory1 = g.memory1;
+        is_sub = g.is_sub;
+
+        g.x_size = 0;
+        g.y_size = 0;
+        g.memory = nullptr;
+        g.memory1 = nullptr;
+        g.is_sub = nullptr;
+
+        return *this;
+    }
 
     template<typename P>
     friend std::ostream& operator<<(std::ostream& os, Grid<P> const& g);
@@ -104,9 +157,13 @@ public:
         bool b = false;
         for (int i = 0; i < x_size; i++) {
             for (int j = 0; j < y_size; j++)
-                if (is_sub[i * y_size + j]) b = true;
+                if (is_sub[i * y_size + j]) 
+                    b = true;
         }
-        if (!b) memory1 = nullptr;
+        if (!b) {
+            delete[] memory1;
+            memory1 = nullptr;
+        }
         return *this;
     };
 
@@ -147,13 +204,30 @@ std::ostream& operator<<(std::ostream& os, Grid<U> const& g) {
 };
 
 int main() {
+
     Grid<int> g(2, 2);
-    std::cin >> g;
+    std::istringstream ss{
+        "1 2 3 4"
+    };
+    ss >> g;
+    Grid<int> a = g;
+    std::cout << a << g(1, 1) << "\n";
+    std::cout << g.get_xsize() << " " << g.get_ysize() << "\n" << g.get_memory() << "\n";
+    g = 2;
+    a = g;
+    std::cout << a << "\n";
     g.make_subgrid(0, 0, 2, 2);
     g.get_subgrid(0, 0).make_subgrid(1, 1, 3, 3);
+    g.get_subgrid(0, 0).collapse_subgrid(1, 1);
+    g.get_subgrid(0, 0)(1, 0) = 1;
+    g.get_subgrid(0, 0)(0, 1) = 3;
     std::cout << g.get_subgrid(0, 0);
-    std::cout << g.get_subgrid(0, 0).get_subgrid(1, 1);
+    std::cout << g.get_subgrid(0, 0).make_subgrid(1, 1, 3, 3);
+    a = g;
+    std::cout << "\n" << a << "\n" << a.get_subgrid(0, 0) << "\n" <<a.get_subgrid(0, 0).get_subgrid(1, 1) << "\n";
     g.collapse_subgrid(0, 0);
-    std::cout << g;
+    std::cout << g << "\n";
+    a = a;
+    std::cout << a;
     return 0;
-}
+ }
